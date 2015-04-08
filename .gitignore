@@ -1,2 +1,3 @@
-textpattern/**/*
+textpattern/config.php
+textpattern/config-dist.php
 privat/Connections/*
