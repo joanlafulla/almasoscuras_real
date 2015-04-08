@@ -9,8 +9,8 @@
 
 	Use of this software indicates acceptance of the Textpattern license agreement
 
-$HeadURL: https://textpattern.googlecode.com/svn/releases/4.4.1/source/textpattern/include/txp_prefs.php $
-$LastChangedRevision: 3555 $
+$HeadURL: https://textpattern.googlecode.com/svn/releases/4.5.7/source/textpattern/include/txp_prefs.php $
+$LastChangedRevision: 4062 $
 
 */
 	if (!defined('txpinterface')) die('txpinterface is undefined.');
@@ -23,19 +23,21 @@ $LastChangedRevision: 3555 $
 		require_privs('prefs');
 
 		$available_steps = array(
-			'advanced_prefs' 	=> false,
-			'prefs_save'		=> true,
-			'advanced_prefs_save'	=> true,
-			'get_language'		=> true,
-			'get_textpack'		=> true,
-			'list_languages' 	=> false,
-			'prefs_list'		=> false
+			'advanced_prefs'      => false,
+			'prefs_save'          => true,
+			'advanced_prefs_save' => true,
+			'get_language'        => true,
+			'get_textpack'        => true,
+			'remove_language'     => true,
+			'list_languages'      => false,
+			'prefs_list'          => false
 		);
 
-		if (!$step or !bouncer($step, $available_steps)){
-			$step = 'prefs_list';
+		if ($step && bouncer($step, $available_steps)) {
+			$step();
+		} else {
+			prefs_list();
 		}
-		$step();
 	}
 
 // -------------------------------------------------------------
@@ -105,28 +107,22 @@ $LastChangedRevision: 3555 $
 		// Read real DB value instead of potentially 'stale' $prefs array when value has just changed
 		$use_comments = safe_field('val', 'txp_prefs', "name='use_comments'");
 
-		echo pagetop(gTxt('edit_preferences'), $message);
+		echo pagetop(gTxt('tab_preferences'), $message);
 
 		$locale = setlocale(LC_ALL, $locale);
 
-		echo n.'<div id="prefs_container" class="txp-container txp-list">'.
+		echo '<h1 class="txp-heading">'.gTxt('tab_preferences').'</h1>';
+		echo n.'<div id="prefs_container" class="txp-container">'.
 			n.n.'<form method="post" class="prefs-form basic" action="index.php">'.
 
-			n.n.startTable('list', '', 'list').
+			n.'<p class="nav-tertiary">'.
+				sLink('prefs', 'prefs_list', gTxt('site_prefs'), 'navlink-active').
+				sLink('prefs', 'advanced_prefs', gTxt('advanced_preferences'), 'navlink').
+				sLink('prefs', 'list_languages', gTxt('manage_languages'), 'navlink').
+			n.'</p>'.
 
-			n.n.tr(
-				tdcs(
-					hed(gTxt('site_prefs'), 2)
-				, 3)
-			).
-
-			n.n.tr(
-				tdcs(
-					sLink('prefs', 'prefs_list', gTxt('site_prefs'), 'navlink-active').sp.
-					sLink('prefs', 'advanced_prefs', gTxt('advanced_preferences'), 'navlink').sp.
-					sLink('prefs', 'list_languages', gTxt('manage_languages'), 'navlink')
-				, '3', '', 'nav-tertiary')
-			);
+			n.n.startTable('', '', 'txp-list')
+			.'<tbody>';
 
 		$evt_list = safe_column('event', 'txp_prefs', "type = 0 and prefs_id = 1 group by event order by event desc");
 
@@ -141,7 +137,6 @@ $LastChangedRevision: 3555 $
 				if ($a['event'] != $cur_evt)
 				{
 					$cur_evt = $a['event'];
-					$ctr = 1;
 
 					if ($cur_evt == 'comments' && !$use_comments)
 					{
@@ -150,9 +145,9 @@ $LastChangedRevision: 3555 $
 
 					echo n.n.tr(
 						tdcs(
-							hed(gTxt($a['event']), 3, ' class="pref-heading '.$a['event'].'-prefs"')
-						, 3)
-					);
+							hed(gTxt($a['event']), 3, ' class="'.$a['event'].'-prefs"')
+						, 2)
+					, ' class="pref-heading"');
 				}
 
 				if ($cur_evt == 'comments' && !$use_comments)
@@ -160,98 +155,34 @@ $LastChangedRevision: 3555 $
 					continue;
 				}
 
-				// Skip old settings that don't have an input type
-				if (!is_callable($a['html']))
-				{
-					continue;
-				}
-
-				$label = ($a['html'] != 'yesnoradio') ?
+				$label = (!in_array($a['html'], array('yesnoradio', 'is_dst'))) ?
 					'<label for="'.$a['name'].'">'.gTxt($a['name']).'</label>' :
 					gTxt($a['name']);
 
-				$out = tda($label, ' style="text-align: right; vertical-align: middle;" class="pref-label"');
+				$out = tda($label.n.popHelp($a['name']), ' class="pref-label"');
+				$out.= td(pref_func($a['html'], $a['name'], $a['val'], ($a['html'] == 'text_input' ? INPUT_REGULAR : '')), '', 'pref-value');
 
-				if ($a['html'] == 'text_input')
-				{
-					$out.= td(
-						pref_func('text_input', $a['name'], $a['val'], 20)
-					, '', 'pref-value');
-				}
-
-				else
-				{
-					$out.= td(pref_func($a['html'], $a['name'], $a['val']), '', 'pref-value');
-				}
-
-				$out.= tda(popHelp($a['name']), ' style="vertical-align: middle;"');
-
-				echo tr($out, " id='prefs-{$a['name']}' class='{$a['event']}-prefs ".(($ctr%2 == 0) ? 'even' : 'odd')."'");
-				$ctr++;
+				echo tr($out, " id='prefs-{$a['name']}' class='{$a['event']}-prefs'");
 			}
 		}
 
-		echo n.n.tr(
-			tda(
-				fInput('submit', 'Submit', gTxt('save_button'), 'publish').
+		echo n.'</tbody>'.n.endTable().
+			graf(
+				fInput('submit', 'Submit', gTxt('save'), 'publish').
 				n.sInput('prefs_save').
 				n.eInput('prefs').
-				n.hInput('prefs_id', '1')
-			, ' colspan="3" class="noline"')
-		).
-
-		n.n.endTable().
-
-		n.tInput().
-		n.n.'</form>'.
-		n.'</div>';
-
-		$check_updates = gps('check_updates');
-
-		echo '<div id="prefs_control" class="txp-control-panel">';
-
-		if ($check_updates)
-		{
-			$updates = checkUpdates();
-
-			if (is_array($updates))
-			{
-				$out = join(br, $updates);
-			}
-
-			else{
-				$out = $updates;
-			}
-
-			echo n.n.startTable('edit').
-
-				n.n.tr(
-					tda($out)
-				).
-
-				n.n.endTable();
-		}
-
-		else
-		{
-			echo form(
-				graf(
-					'<strong>'.gTxt('check_for_txp_updates').'</strong>'.sp.
-					n.'<input type="submit" name="check_updates" value="'.gTxt('go').'" class="smallerbox" />'.
-					n.eInput('prefs').
-					n.sInput('prefs_list')
-				)
-			, 'text-align: center;');
-		}
-		echo '</div>';
+				n.hInput('prefs_id', '1').
+				n.tInput()
+			).
+			n.n.'</form>'.
+			n.'</div>';
 	}
 
 //-------------------------------------------------------------
 
 	function pref_func($func, $name, $val, $size = '')
 	{
-		$func = (is_callable('pref_'.$func) ? 'pref_'.$func : $func);
-
+		$func = (is_callable('pref_'.$func) ? 'pref_'.$func : (is_callable($func) ? $func : 'text_input'));
 		return call_user_func($func, $name, $val, $size);
 	}
 
@@ -259,7 +190,20 @@ $LastChangedRevision: 3555 $
 
 	function text_input($name, $val, $size = '')
 	{
-		return fInput('text', $name, $val, 'edit', '', '', $size, '', $name);
+		$class = '';
+		switch ($size) {
+			case INPUT_MEDIUM: $class = 'input-medium'; break;
+			case INPUT_SMALL: $class = 'input-small'; break;
+			case INPUT_XSMALL: $class = 'input-xsmall'; break;
+		}
+		return fInput('text', $name, $val, $class, '', '', $size, '', $name);
+	}
+
+//-------------------------------------------------------------
+
+	function pref_longtext_input($name, $val, $size = '')
+	{
+		return text_area($name, '', '', $val, '', $size);
 	}
 
 //-------------------------------------------------------------
@@ -399,7 +343,7 @@ EOS
 		asort($vals);
 		reset($vals);
 
-		$out = n.'<select id="'.$name.'" name="'.$name.'" class="list languages">';
+		$out = n.'<select id="'.$name.'" name="'.$name.'" class="languages">';
 
 		foreach ($vals as $avalue => $alabel)
 		{
@@ -407,7 +351,7 @@ EOS
 				' selected="selected"' :
 				'';
 
-			$out .= n.t.'<option value="'.htmlspecialchars($avalue).'"'.$selected.'>'.htmlspecialchars($alabel).'</option>'.n;
+			$out .= n.t.'<option value="'.txpspecialchars($avalue).'"'.$selected.'>'.txpspecialchars($alabel).'</option>'.n;
 		}
 
 		$out .= n.'</select>';
@@ -507,7 +451,7 @@ EOS
 			}
 		}
 
-		return n.'<select name="'.$name.'" class="list default-events">'.
+		return n.'<select id="default_event" name="'.$name.'" class="default-events">'.
 			join('', $out).
 			n.'</select>';
 	}
@@ -527,7 +471,7 @@ EOS
 //-------------------------------------------------------------
 	function custom_set($name, $val)
 	{
-		return pluggable_ui('prefs_ui', 'custom_set', text_input($name, $val, 20), $name, $val);
+		return pluggable_ui('prefs_ui', 'custom_set', text_input($name, $val, INPUT_REGULAR), $name, $val);
 	}
 
 //-------------------------------------------------------------
@@ -549,29 +493,35 @@ EOS
 		return pluggable_ui('prefs_ui', 'theme_name',
 			selectInput($name, $vals, $val, '', '', $name));
 	}
+
+//-------------------------------------------------------------
+	function doctypes($name, $val)
+	{
+		$vals = array(
+			'xhtml' => gTxt('XHTML'),
+			'html5' => gTxt('HTML5')
+		);
+
+		return selectInput($name, $vals, $val, '', '', $name);
+	}
+
 //-------------------------------------------------------------
 	function advanced_prefs($message = '')
 	{
 		echo pagetop(gTxt('advanced_preferences'), $message).
 
-			n.'<div id="prefs_container" class="txp-container txp-list">'.
+			n.'<h1 class="txp-heading">'.gTxt('tab_preferences').'</h1>'.
+			n.'<div id="prefs_container" class="txp-container">'.
 			n.n.'<form method="post" class="prefs-form advanced" action="index.php">'.
 
-			n.n.startTable('list', '', 'list').
+			n.'<p class="nav-tertiary">'.
+				sLink('prefs', 'prefs_list', gTxt('site_prefs'), 'navlink').
+				sLink('prefs', 'advanced_prefs', gTxt('advanced_preferences'), 'navlink-active').
+				sLink('prefs', 'list_languages', gTxt('manage_languages'), 'navlink').
+			n.'</p>'.
 
-			n.n.tr(
-				tdcs(
-					hed(gTxt('advanced_preferences'), 2)
-				, 3)
-			).
-
-			n.n.tr(
-				tdcs(
-					sLink('prefs', 'prefs_list', gTxt('site_prefs'), 'navlink').sp.
-					sLink('prefs', 'advanced_prefs', gTxt('advanced_preferences'), 'navlink-active').sp.
-					sLink('prefs', 'list_languages', gTxt('manage_languages'), 'navlink')
-				, '3', '', 'nav-tertiary')
-			);
+			n.n.startTable('', '', 'txp-list')
+			.'<tbody>';
 
 		$rs = safe_rows_start('*', 'txp_prefs', "type = 1 and prefs_id = 1 order by event, position");
 
@@ -579,73 +529,56 @@ EOS
 
 		while ($a = nextRow($rs))
 		{
+			$headingPopHelp = (strpos($a['name'], 'custom_') !== false);
+
 			if ($a['event']!= $cur_evt)
 			{
 				$cur_evt = $a['event'];
 
-				$ctr = 1;
-
 				echo n.n.tr(
 					tdcs(
-						hed(gTxt($a['event']), 3, ' class="pref-heading '.$a['event'].'-prefs"')
-					, 3)
-				);
+						hed(gTxt($a['event']) . ($headingPopHelp ? n.popHelp($a['name']) : ''), 3, ' class="'.$a['event'].'-prefs"')
+					, 2)
+				, ' class="pref-heading"');
 			}
 
-				$label = ($a['html'] != 'yesnoradio') ?
-					'<label for="'.$a['name'].'">'.gTxt($a['name']).'</label>' :
-					gTxt($a['name']);
+			$label = (!in_array($a['html'], array('yesnoradio', 'is_dst')))
+				? '<label for="'.$a['name'].'">'.gTxt($a['name']).'</label>'
+				: gTxt($a['name']);
 
-			$out = tda($label, ' style="text-align: right; vertical-align: middle;" class="pref-label"');
+			$out = tda($label. (($headingPopHelp) ? '' : n.popHelp($a['name'])), ' class="pref-label"');
 
 			if ($a['html'] == 'text_input')
 			{
 				$look_for = array('expire_logs_after', 'max_url_len', 'time_offset', 'rss_how_many', 'logs_expire');
 
-				$size = in_array($a['name'], $look_for) ? 3 : 20;
+				$size = in_array($a['name'], $look_for) ? INPUT_XSMALL : INPUT_REGULAR;
 
 				$out.= td(
 					pref_func('text_input', $a['name'], $a['val'], $size)
-				);
+				, '', 'pref-value');
 			}
 
 			else
 			{
-				if (is_callable($a['html']))
-				{
-					$out.= td(
-						pref_func($a['html'], $a['name'], $a['val'])
-					, '', 'pref-value');
-				}
-
-				else
-				{
-					$out.= td($a['val'], '', 'pref-value');
-				}
+				$out.= td(
+					pref_func($a['html'], $a['name'], $a['val'])
+				, '', 'pref-value');
 			}
 
-			$out .= tda(
-				popHelp($a['name'])
-			, ' style="vertical-align: middle;"');
-
-			echo n.n.tr($out, " id='prefs-{$a['name']}' class='{$a['event']}-prefs ".(($ctr%2 == 0) ? 'even' : 'odd')."'");
-			$ctr++;
+			echo n.n.tr($out, " id='prefs-{$a['name']}' class='{$a['event']}-prefs'");
 		}
 
-		echo n.n.tr(
-			tda(
-				fInput('submit', 'Submit', gTxt('save_button'), 'publish').
-				sInput('advanced_prefs_save').
-				eInput('prefs').
-				hInput('prefs_id', '1')
-			, ' colspan="3" class="noline"')
-		).
-
-		n.n.endTable().
-
-		n.tInput().
-		n.n.'</form>'.
-		n.'</div>';
+		echo n.'</tbody>'.n.endTable().
+			graf(
+				fInput('submit', 'Submit', gTxt('save'), 'publish').
+				n.sInput('advanced_prefs_save').
+				n.eInput('prefs').
+				n.hInput('prefs_id', '1').
+				n.tInput()
+			).
+			n.n.'</form>'.
+			n.'</div>';
 	}
 
 //-------------------------------------------------------------
@@ -710,10 +643,10 @@ EOS
 	}
 
 //-------------------------------------------------------------
-	# RPC install/update languages
+// install/update/remove languages
 	function list_languages($message='')
 	{
-		global $prefs, $locale, $txpcfg, $textarray;
+		global $prefs, $locale, $textarray;
 		require_once txpath.'/lib/IXRClass.php';
 
 		// Select and save active language
@@ -727,39 +660,41 @@ EOS
 				$message = gTxt('preferences_saved');
 		}
 		$active_lang = safe_field('val','txp_prefs',"name='language'");
-		$lang_form = tda('<div id="language_control" class="txp-control-panel">'.
-								form(gTxt('active_language').'&nbsp;&nbsp;'.
-								languages('language',$active_lang).'&nbsp;&nbsp;'.
-								fInput('submit','Submit',gTxt('save_button'),'').
-								eInput('prefs').sInput('list_languages')
-							,'display:inline;').'</div>'
-						,' style="text-align:center" colspan="3"');
-
+		$lang_form = '<div id="language_control" class="txp-control-panel">'.
+								form(
+									graf(
+										gTxt('active_language').
+										languages('language',$active_lang).n.
+										fInput('submit','Submit',gTxt('save'),'publish').
+										eInput('prefs').sInput('list_languages')
+									)
+								).'</div>';
 
 		$client = new IXR_Client(RPC_SERVER);
-		#$client->debug = true;
+		//$client->debug = true;
 
 		$available_lang = array();
-		$rpc_connect = false;$show_files = false;
+		$rpc_connect = false;
+		$show_files = false;
 
-		# Get items from RPC
+		// Get items from RPC
 		@set_time_limit(90);
-		if (gps('force')!='file' && $client->query('tups.listLanguages',$prefs['blog_uid']))
+		if ($client->query('tups.listLanguages',$prefs['blog_uid']))
 		{
 			$rpc_connect = true;
 			$response = $client->getResponse();
 			foreach ($response as $language)
 				$available_lang[$language['language']]['rpc_lastmod'] = gmmktime($language['lastmodified']->hour,$language['lastmodified']->minute,$language['lastmodified']->second,$language['lastmodified']->month,$language['lastmodified']->day,$language['lastmodified']->year);
-		} elseif (gps('force')!='file')
+		}
+		elseif (gps('force') != 'file')
 		{
 			$msg = gTxt('rpc_connect_error')."<!--".$client->getErrorCode().' '.$client->getErrorMessage()."-->";
 		}
 
-		# Get items from Filesystem
+		// Get items from Filesystem
 		$files = get_lang_files();
-		if (gps('force')=='file' || !$rpc_connect)
-			$show_files = true;
-		if ( $show_files && is_array($files) && !empty($files) )
+
+		if ( is_array($files) && !empty($files) )
 		{
 			foreach ($files as $file)
 			{
@@ -778,131 +713,156 @@ EOS
 				}
 			}
 		}
-		# Get installed items from the database
-		# I'm affraid we need a value here for the language itself, not for each one of the rows
+
+		// Get installed items from the database
+		// We need a value here for the language itself, not for each one of the rows
 		$rows = safe_rows('lang, UNIX_TIMESTAMP(MAX(lastmod)) as lastmod','txp_lang',"1 GROUP BY lang ORDER BY lastmod DESC");
+		$installed_lang = array();
 		foreach ($rows as $language)
 		{
 			$available_lang[$language['lang']]['db_lastmod'] = $language['lastmod'];
+			if ($language['lang'] != $active_lang) {
+				$installed_lang[] = $language['lang'];
+			}
 		}
 
 		$list = '';
-		$ctr = 1;
-		# Show the language table
+
+		// Show the language table
 		foreach ($available_lang as $langname => $langdat)
 		{
 			$file_updated = ( isset($langdat['db_lastmod']) && @$langdat['file_lastmod'] > $langdat['db_lastmod']);
 			$rpc_updated = ( @$langdat['rpc_lastmod'] > @$langdat['db_lastmod']);
-			$rpc_install = tda( strong(eLink('prefs','get_language','lang_code',$langname,(isset($langdat['db_lastmod']))
-										? gTxt('update') : gTxt('install'),'updating',isset($langdat['db_lastmod']) )).
-								br.safe_strftime('%d %b %Y %X',@$langdat['rpc_lastmod'])
-							,(isset($langdat['db_lastmod']))
-								? ' class="highlight" style="vertical-align:middle;text-align:center"'
-								: ' style="vertical-align:middle;text-align:center"');
-			$list.= tr (
-				# Lang-Name & Date
-				tda(gTxt($langname).
-					tag( ( isset($langdat['db_lastmod']) )
-							? br.'&nbsp;'.safe_strftime('%d %b %Y %X',$langdat['db_lastmod'])
-							: ''
-						, 'span',' class="date modified"')
-					, (isset($langdat['db_lastmod']) && $rpc_updated) #tda attribute
-							? ' nowrap="nowrap" class="highlight" style="vertical-align:middle"'
-							: ' nowrap="nowrap" style="vertical-align:middle"' ).n.
-				# RPC - Info
-				(  ($rpc_updated)
-					? $rpc_install
-					: tda( (isset($langdat['rpc_lastmod'])) ? gTxt('updated') : '-'
-						,' style="vertical-align:middle;text-align:center"')
-				).n.
-				# File - Info
-				( ($show_files)
-					? tda( tag( ( isset($langdat['file_lastmod']) )
-									? eLink('prefs','get_language','lang_code',$langname,($file_updated) ? gTxt('update') : gTxt('install'),'force','file').
-											br.'&nbsp;'.safe_strftime($prefs['archive_dateformat'],$langdat['file_lastmod'])
-									: ' &nbsp; '  # No File available
-								, 'span', ($file_updated) ? ' class="date created"' : ' class="date modified"' )
-							, ' class="langfile" style="text-align:center;vertical-align:middle"').n
-					: '')
-			, ' class="'.(($ctr%2 == 0) ? 'even' : 'odd').'"'
+
+			$rpc_install = tda(
+								($rpc_updated)
+								? strong(
+										eLink(
+											'prefs',
+											'get_language',
+											'lang_code',
+											$langname,
+											(isset($langdat['db_lastmod'])
+												? gTxt('update')
+												: gTxt('install')
+											),
+											'updating',
+											isset($langdat['db_lastmod']),
+											''
+										)
+									).
+									n.'<span class="date modified">'.safe_strftime('%d %b %Y %X',@$langdat['rpc_lastmod']).'</span>'
+								: (
+										(isset($langdat['rpc_lastmod'])
+											? gTxt('updated')
+											: '-'
+										).
+										(isset($langdat['db_lastmod'])
+											? n.'<span class="date modified">'.safe_strftime('%d %b %Y %X',$langdat['db_lastmod']).'</span>'
+											: ''
+										)
+									)
+								,(isset($langdat['db_lastmod']) && $rpc_updated)
+									? ' class="highlight lang-value"'
+									: ' class="lang-value"'
+								);
+
+			$lang_file = tda(
+								(isset($langdat['file_lastmod']))
+								? strong(
+									eLink(
+										'prefs',
+										'get_language',
+										'lang_code',
+										$langname,
+										(
+											($file_updated)
+											? gTxt('update')
+											: gTxt('install')
+										),
+										'force',
+										'file',
+										''
+									)
+								).
+								n.'<span class="date '.($file_updated ? 'created' : 'modified').'">'.safe_strftime($prefs['archive_dateformat'],$langdat['file_lastmod']).'</span>'
+
+								: '-'
+							, ' class="lang-value languages_detail'.((isset($langdat['db_lastmod']) && $rpc_updated) ? ' highlight' : '').'"'
+							);
+			$list .= tr (
+				// Lang-Name & Date
+				tda(gTxt($langname)
+					, (isset($langdat['db_lastmod']) && $rpc_updated)
+							? ' class="highlight lang-label"'
+							: ' class="lang-label"' ).n.
+				$rpc_install.n.
+				$lang_file.n.
+				tda( (in_array($langname, $installed_lang) ? dLink('prefs', 'remove_language', 'lang_code', $langname, 1) : '-'), ' class="languages_detail'.((isset($langdat['db_lastmod']) && $rpc_updated) ? ' highlight' : '').'"')
 			).n.n;
-			$ctr++;
 		}
 
 
 		// Output Table + Content
+		// TODO: tab_languages when this panel is moved to its own tab
 		pagetop(gTxt('update_languages'),$message);
 
-		echo n.'<div id="language_container" class="txp-container txp-list">';
+		//TODO: tab_languages when this panel is moved to its own tab
+		echo '<h1 class="txp-heading">'.gTxt('update_languages').'</h1>';
+		echo n.'<div id="language_container" class="txp-container">';
 
 		if (isset($msg) && $msg)
-			echo tag ($msg,'p',' class="not-ok" style="text-align:center;width:50%;margin:2em auto"' );
+			echo tag ($msg,'p',' class="error lang-msg"' );
 
-		echo startTable('list', '', 'list'),
+		echo n.'<p class="nav-tertiary">'.
+				sLink('prefs', 'prefs_list', gTxt('site_prefs'), 'navlink').
+				sLink('prefs', 'advanced_prefs', gTxt('advanced_preferences'), 'navlink').
+				sLink('prefs', 'list_languages', gTxt('manage_languages'), 'navlink-active').
+			n.'</p>';
 
-		tr(
-			tdcs(
-				hed(gTxt('manage_languages'), 2)
-			, 3)
-		),
+		echo $lang_form;
 
-		tr(
-			tdcs(
-				sLink('prefs', 'prefs_list', gTxt('site_prefs'), 'navlink').sp.
-				sLink('prefs','advanced_prefs',gTxt('advanced_preferences'),'navlink').sp.
-				sLink('prefs', 'list_languages', gTxt('manage_languages'), 'navlink-active')
-			, '3', '', 'nav-tertiary')
-		),
+		echo n, '<div class="txp-listtables">',
+			startTable('', '', 'txp-list'),
+			'<thead>',
+			tr(
+				hCell(gTxt('language')).
+				hCell(gTxt('from_server').n.popHelp('install_lang_from_server')).
+				hCell(gTxt('from_file').n.popHelp('install_lang_from_file'), '', ' class="languages_detail"').
+				hCell(gTxt('remove_lang').n.popHelp('remove_lang'), '', ' class="languages_detail"')
+			),
+			'</thead>';
 
-		tr(tda('&nbsp;',' colspan="3" style="font-size:0.25em"')),
-		tr( $lang_form ),
-		tr(tda('&nbsp;',' colspan="3" style="font-size:0.25em"')),
-		tr(tda(gTxt('language')).tda(gTxt('from_server')).( ($show_files) ? tda(gTxt('from_file')) : '' ), ' style="font-weight:bold"');
-		echo $list;
+		echo '<tbody>'.$list.'</tbody>',
+			endTable(),
+			n, '</div>';
 
-		if (gps('force')!='file')
-		{
-			echo
-			tr(tda('&nbsp;',' colspan="3" style="font-size:0.25em"'))
-			. tr(
-				tda(
-					strong(gTxt('install_textpack')).sp.sp.tag(popHelp('get_textpack'), 'span')
-					.br.form(
-						'<textarea id="textpack-install" class="code" name="textpack" cols="45" rows="5"></textarea>'.n.
-						graf(fInput('submit', 'install_new', gTxt('upload'), 'smallerbox')).
+		echo
+			graf(
+				toggle_box('languages_detail'),
+				' class="detail-toggle"'
+			);
+
+		echo
+			hed(gTxt('install_from_textpack'), 3).n
+				.form(
+					graf(
+						'<label for="textpack-install">'.gTxt('install_textpack').'</label>'.n.
+						popHelp('get_textpack').n.
+						'<textarea id="textpack-install" class="code" name="textpack" cols="'.INPUT_LARGE.'" rows="'.INPUT_XSMALL.'"></textarea>'.n.
+						fInput('submit', 'install_new', gTxt('upload')).
 						eInput('prefs').
 						sInput('get_textpack')
-					, '', '', 'post', 'edit-form', '', 'text_uploader')
-				,' colspan="3"')
-			);
-		}
+					)
+				, '', '', 'post', 'edit-form', '', 'text_uploader');
 
-		if (!$show_files)
-		{
-			$linktext =  gTxt('from_file').' ('.gTxt('experts_only').')';
-			echo tr(tda('&nbsp;',' colspan="3" style="font-size:0.25em"')).
-				tr(tda(strong(eLink('prefs','list_languages','force','file',$linktext)),' colspan="3" style="text-align:center"') );
-		} elseif (gps('force')=='file') {
-			echo tr(tda('&nbsp;',' colspan="3" style="font-size:0.25em"')).
-				tr(tda(sLink('prefs','list_languages',strong(gTxt('from_server'))),' colspan="3" style="text-align:center"') );
-		}
-		echo endTable();
-
-		$install_langfile = gTxt('install_langfile', array(
-			'{url}' => strong('<a href="'.RPC_SERVER.'/lang/">'.RPC_SERVER.'/lang/</a>')
-			),
-			'raw');
-
-		if ( $install_langfile == 'install_langfile')
-			$install_langfile = 'To install new languages from file you can download them from <b><a href="'.RPC_SERVER.'/lang/">'.RPC_SERVER.'/lang/</a></b> and place them inside your ./textpattern/lang/ directory.';
-		echo tag( $install_langfile ,'p',' style="text-align:center;width:50%;margin: 2em auto"' );
 		echo '</div>'; // end language_container
 	}
 
 //-------------------------------------------------------------
 	function get_language()
 	{
-		global $prefs, $txpcfg, $textarray;
+		global $prefs, $textarray;
 		require_once txpath.'/lib/IXRClass.php';
 		$lang_code = gps('lang_code');
 
@@ -910,54 +870,64 @@ EOS
 //		$client->debug = true;
 
 		@set_time_limit(90);
-		if (gps('force')=='file' || !$client->query('tups.getLanguage',$prefs['blog_uid'],$lang_code))
+		if (gps('force') == 'file' || !$client->query('tups.getLanguage',$prefs['blog_uid'],$lang_code))
 		{
-			if ( (gps('force')=='file' || gps('updating')!=='1') && install_language_from_file($lang_code) )
+			if ( (gps('force') == 'file' || gps('updating') !== '1') && install_language_from_file($lang_code) )
 			{
 				if (defined('LANG'))
 					$textarray = load_lang(LANG);
+
 				return list_languages(gTxt($lang_code).sp.gTxt('updated'));
-			}else{
-
-				$install_langfile = gTxt('install_langfile', array(
-					'{url}' => strong('<a href="'.RPC_SERVER.'/lang/">'.RPC_SERVER.'/lang/</a>')
-				));
-
-				if ( $install_langfile == 'install_langfile')
-					$install_langfile = 'To install new languages from file you can download them from <b><a href="'.RPC_SERVER.'/lang/">'.RPC_SERVER.'/lang/</a></b> and place them inside your ./textpattern/lang/ directory.';
+			}
+			else
+			{
 				pagetop(gTxt('installing_language'));
 				echo tag( gTxt('rpc_connect_error')."<!--".$client->getErrorCode().' '.$client->getErrorMessage()."-->"
-						,'p',' class="not-ok" style="text-align:center;width:50%;margin:2em auto"' );
-				echo tag( $install_langfile ,'p',' style="text-align:center;width:50%;margin: 2em auto"' );
+						,'p',' class="error lang-msg"' );
 			}
-		}else {
+		}
+		else
+		{
 			$response = $client->getResponse();
 			$lang_struct = unserialize($response);
-			function install_lang_key(&$value, $key)
-			{
-				extract(gpsa(array('lang_code','updating')));
-				$exists = safe_field('name','txp_lang',"name='".doSlash($value['name'])."' AND lang='".doSlash($lang_code)."'");
-				$q = "name='".doSlash($value['name'])."', event='".doSlash($value['event'])."', data='".doSlash($value['data'])."', lastmod='".doSlash(strftime('%Y%m%d%H%M%S',$value['uLastmod']))."'";
-
-				if ($exists)
+			if ($lang_struct === false) {
+				$errors = $size = 1;
+			} else {
+				function install_lang_key(&$value, $key)
 				{
-					$value['ok'] = safe_update('txp_lang',$q,"lang='".doSlash($lang_code)."' AND name='".doSlash($value['name'])."'");
-				}else{
-					$value['ok'] = safe_insert('txp_lang',$q.", lang='".doSlash($lang_code)."'");
+					extract(gpsa(array('lang_code','updating')));
+					$exists = safe_field('name','txp_lang',"name='".doSlash($value['name'])."' AND lang='".doSlash($lang_code)."'");
+					$q = "name='".doSlash($value['name'])."', event='".doSlash($value['event'])."', data='".doSlash($value['data'])."', lastmod='".doSlash(strftime('%Y%m%d%H%M%S',$value['uLastmod']))."'";
+
+					if ($exists)
+					{
+						$value['ok'] = safe_update('txp_lang',$q,"lang='".doSlash($lang_code)."' AND name='".doSlash($value['name'])."'");
+					}
+					else
+					{
+						$value['ok'] = safe_insert('txp_lang',$q.", lang='".doSlash($lang_code)."'");
+					}
+				}
+
+				array_walk($lang_struct,'install_lang_key');
+				$size = count($lang_struct);
+				$errors = 0;
+				for($i=0; $i < $size ; $i++)
+				{
+					$errors += ( !$lang_struct[$i]['ok'] );
+				}
+
+				if (defined('LANG')) {
+					$textarray = load_lang(LANG);
 				}
 			}
-			array_walk($lang_struct,'install_lang_key');
-			$size = count($lang_struct);
-			$errors = 0;
-			for($i=0; $i < $size ; $i++)
-			{
-				$errors += ( !$lang_struct[$i]['ok'] );
-			}
-			if (defined('LANG'))
-				$textarray = load_lang(LANG);
+
 			$msg = gTxt($lang_code).sp.gTxt('updated');
-			if ($errors > 0)
-				$msg .= sprintf(" (%s errors, %s ok)",$errors, ($size-$errors));
+
+			if ($errors > 0) {
+				$msg = array($msg.sprintf(" (%s errors, %s ok)",$errors, ($size-$errors)), E_ERROR);
+			}
+
 			return list_languages($msg);
 		}
 	}
@@ -970,23 +940,38 @@ EOS
 		return list_languages(gTxt('textpack_strings_installed', array('{count}' => $n)));
 	}
 
+//-------------------------------------------------------------
+	function remove_language()
+	{
+		$lang_code = ps('lang_code');
+		$ret = safe_delete('txp_lang', "lang='".doSlash($lang_code)."'");
+		if ($ret) {
+			$msg = gTxt($lang_code).sp.gTxt('deleted');
+		}
+		else
+		{
+			$msg = gTxt('cannot_delete', array('{thing}' => $lang_code));
+		}
+
+		return list_languages($msg);
+	}
+
 // ----------------------------------------------------------------------
 
-function get_lang_files()
-{
-	$lang_dir = txpath.DS.'lang'.DS;
-
-	if (!is_dir($lang_dir))
+	function get_lang_files()
 	{
-		trigger_error('Lang directory is not a directory: '.$lang_dir, E_USER_WARNING);
-		return array();
-	}
+		$lang_dir = txpath.DS.'lang'.DS;
 
-	if (chdir($lang_dir))
-	{
-		$files = glob('*.txt');
-	}
-	return (is_array($files)) ? $files : array();
-}
+		if (!is_dir($lang_dir))
+		{
+			trigger_error('Lang directory is not a directory: '.$lang_dir, E_USER_WARNING);
+			return array();
+		}
 
+		if (chdir($lang_dir))
+		{
+			$files = glob('*.txt');
+		}
+		return (is_array($files)) ? $files : array();
+	}
 ?>

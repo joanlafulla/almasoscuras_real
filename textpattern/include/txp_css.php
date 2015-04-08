@@ -1,8 +1,8 @@
 <?php
 
 /*
-$HeadURL: https://textpattern.googlecode.com/svn/releases/4.4.1/source/textpattern/include/txp_css.php $
-$LastChangedRevision: 3535 $
+$HeadURL: https://textpattern.googlecode.com/svn/releases/4.5.7/source/textpattern/include/txp_css.php $
+$LastChangedRevision: 4090 $
 */
 
 	if (!defined('txpinterface')) die('txpinterface is undefined.');
@@ -12,12 +12,12 @@ $LastChangedRevision: 3535 $
 
 		bouncer($step,
 			array(
-				'css_edit_raw' 	=> false,
-				'pour' 			=> false,
-				'css_save' 		=> true,
-				'css_copy' 		=> true,
-				'css_delete' 	=> true,
-				'css_edit' 		=> false,
+				'css_edit_raw' => false,
+				'pour'         => false,
+				'css_save'     => true,
+				'css_copy'     => true,
+				'css_delete'   => true,
+				'css_edit'     => false,
 			)
 		);
 
@@ -32,22 +32,24 @@ $LastChangedRevision: 3535 $
 		}
 	}
 
-//-------------------------------------------------------------
+// -------------------------------------------------------------
+
 	function css_list($current, $default) {
-		$out[] = startTable('list', 'left', 'list');
+		$out[] = startTable('', '', 'txp-list');
 
-		$rs = safe_rows_start('name', 'txp_css', "1=1");
+		$protected = safe_column('DISTINCT css', 'txp_section', '1=1');
 
-		$ctr = 1;
+		$criteria = 1;
+		$criteria .= callback_event('admin_criteria', 'css_list', 0, $criteria);
+
+		$rs = safe_rows_start('name', 'txp_css', $criteria);
 
 		if ($rs) {
 			while ($a = nextRow($rs)) {
 				extract($a);
-				$edit = ($current != $name) ?	eLink('css', '', 'name', $name, $name) : htmlspecialchars($name);
-				$delete = ($name != $default) ? dLink('css', 'css_delete', 'name', $name) : '';
-				$trcls = ' class="'.((($ctr==1) ? 'first ' : '').(($ctr%2 == 0) ? 'even' : 'odd')).'"';
-				$out[] = tr(td($edit).td($delete), $trcls);
-				$ctr++;
+				$edit = ($current != $name) ?	eLink('css', '', 'name', $name, $name) : txpspecialchars($name);
+				$delete = (!array_key_exists($name, $protected)) ? dLink('css', 'css_delete', 'name', $name) : '';
+				$out[] = tr(td($edit).td($delete));
 			}
 
 			$out[] =  endTable();
@@ -56,7 +58,8 @@ $LastChangedRevision: 3535 $
 		}
 	}
 
-//-------------------------------------------------------------
+// -------------------------------------------------------------
+
 	function css_edit($message='')
 	{
 		pagetop(gTxt("edit_css"),$message);
@@ -64,7 +67,8 @@ $LastChangedRevision: 3535 $
 		css_edit_raw();
 	}
 
-//-------------------------------------------------------------
+// -------------------------------------------------------------
+
 	function css_edit_raw() {
 		global $event, $step;
 
@@ -84,19 +88,21 @@ $LastChangedRevision: 3535 $
 		{
 			$buttons = '<div class="edit-title">'.
 			gTxt('name_for_this_style').': '
-			.fInput('text','newname','','edit','','',20).
+			.fInput('text','newname','','','','',INPUT_REGULAR).
 			hInput('savenew','savenew').
 			'</div>';
 			$thecss = gps('css');
 
 		} else {
-			$buttons = '<div class="edit-title">'.gTxt('you_are_editing_css').sp.strong(htmlspecialchars($name)).'</div>';
+			$buttons = '<div class="edit-title">'.gTxt('you_are_editing_css').sp.strong(txpspecialchars($name)).'</div>';
 			$thecss = fetch("css",'txp_css','name',$name);
 		}
 
 		if (!empty($name)) {
-			$copy = '<span class="copy-as"><label for="copy-css">'.gTxt('copy_css_as').'</label>'.sp.fInput('text', 'newname', '', 'edit', '', '', '', '', 'copy-css').sp.
-				fInput('submit', 'copy', gTxt('copy'), 'smallerbox').'</span>';
+			$copy =
+				n.'<p class="copy-as"><label for="copy-css">'.gTxt('copy_css_as').'</label>'.
+				n.fInput('text','newname','','input-medium','','',INPUT_MEDIUM,'','copy-css').
+				n.fInput('submit', 'copy', gTxt('copy')).'</p>';
 		} else {
 			$copy = '';
 		}
@@ -104,22 +110,23 @@ $LastChangedRevision: 3535 $
 		$right =
 		'<div id="content_switcher">'.
 		hed(gTxt('all_stylesheets'),2).
-		graf(sLink('css', 'pour', gTxt('create_new_css')), ' class="action-create smallerbox"').
+		graf(sLink('css', 'pour', gTxt('create_new_css')), ' class="action-create"').
 		css_list($name, $default_name).
 		'</div>';
 
 		echo
-		'<div id="'.$event.'_container" class="txp-container txp-edit">'.
-		startTable('edit').
+		'<h1 class="txp-heading">'.gTxt('tab_style').'</h1>'.
+		'<div id="'.$event.'_container" class="txp-container">'.
+		startTable('', '', 'txp-columntable').
 		tr(
 			td(
 				form(
 					'<div id="main_content">'.
 					$buttons.
-					'<textarea id="css" class="code" name="css" cols="78" rows="32">'.htmlspecialchars($thecss).'</textarea>'.br.
-					fInput('submit','',gTxt('save'),'publish').
+					'<textarea id="css" class="code" name="css" cols="'.INPUT_LARGE.'" rows="'.INPUT_REGULAR.'">'.txpspecialchars($thecss).'</textarea>'.
+					'<p>'.fInput('submit','',gTxt('save'),'publish').
 					eInput('css').sInput('css_save').
-					hInput('name',$name)
+					hInput('name',$name).'</p>'
 					.$copy.
 					'</div>'
 				, '', '', 'post', 'edit-form', '', 'style_form')
@@ -133,6 +140,7 @@ $LastChangedRevision: 3535 $
 	}
 
 // -------------------------------------------------------------
+
 	function css_copy()
 	{
 		extract(gpsa(array('oldname', 'newname')));
@@ -146,10 +154,11 @@ $LastChangedRevision: 3535 $
 		);
 	}
 
-//-------------------------------------------------------------
+// -------------------------------------------------------------
+
 	function css_save()
 	{
-		extract(gpsa(array('name','css','savenew','newname','copy')));
+		extract(array_map('assert_string', gpsa(array('name','css','savenew','newname','copy'))));
 		$css = doSlash($css);
 
 		if ($savenew or $copy)
@@ -167,14 +176,16 @@ $LastChangedRevision: 3535 $
 
 			elseif ($newname)
 			{
-				safe_insert('txp_css', "name = '".$newname."', css = '$css'");
-
-				// update site last mod time
-				update_lastmod();
-
-				$message = gTxt('css_created', array('{name}' => $newname));
+				if (safe_insert('txp_css', "name = '".$newname."', css = '$css'"))
+				{
+					update_lastmod();
+					$message = gTxt('css_created', array('{name}' => $newname));
+				}
+				else
+				{
+					$message = array(gTxt('css_save_failed'), E_ERROR);
+				}
 			}
-
 			else
 			{
 				$message = array(gTxt('css_name_required'), E_ERROR);
@@ -182,21 +193,23 @@ $LastChangedRevision: 3535 $
 
 			css_edit($message);
 		}
-
 		else
 		{
-			safe_update('txp_css', "css = '$css'", "name = '".doSlash($name)."'");
-
-			// update site last mod time
-			update_lastmod();
-
-			$message = gTxt('css_updated', array('{name}' => $name));
-
+			if (safe_update('txp_css', "css = '$css'", "name = '".doSlash($name)."'"))
+			{
+				update_lastmod();
+				$message = gTxt('css_updated', array('{name}' => $name));
+			}
+			else
+			{
+				$message = array(gTxt('css_save_failed'), E_ERROR);
+			}
 			css_edit($message);
 		}
 	}
 
-//-------------------------------------------------------------
+// -------------------------------------------------------------
+
 	function css_delete()
 	{
 		$name  = ps('name');
@@ -204,16 +217,16 @@ $LastChangedRevision: 3535 $
 
 		if ($count)
 		{
-			$message = gTxt('css_used_by_section', array('{name}' => $name, '{count}' => $count));
+			$message = array(gTxt('css_used_by_section', array('{name}' => $name, '{count}' => $count)), E_ERROR);
 		}
-
 		else
 		{
-			safe_delete('txp_css', "name = '".doSlash($name)."'");
-
-			$message = gTxt('css_deleted', array('{name}' => $name));
+			if (safe_delete('txp_css', "name = '".doSlash($name)."'"))
+			{
+				callback_event('css_deleted', '', 0, $name);
+				$message = gTxt('css_deleted', array('{name}' => $name));
+			}
 		}
-
 		css_edit($message);
 	}
 

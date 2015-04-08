@@ -10,29 +10,27 @@
 	Use of this software indicates acceptance of
 	the Textpattern license agreement
 
-$HeadURL: https://textpattern.googlecode.com/svn/releases/4.4.1/source/textpattern/include/txp_log.php $
-$LastChangedRevision: 3569 $
+$HeadURL: https://textpattern.googlecode.com/svn/releases/4.5.7/source/textpattern/include/txp_log.php $
+$LastChangedRevision: 4062 $
 
 */
-	if (!defined('txpinterface'))
-	{
-		die('txpinterface is undefined.');
-	}
+	if (!defined('txpinterface')) die('txpinterface is undefined.');
 
 	if ($event == 'log')
 	{
 		require_privs('log');
 
 		$available_steps = array(
-			'log_list' 			=> false,
-			'log_change_pageby'	=> true,
-			'log_multi_edit' 	=> true
+			'log_list'          => false,
+			'log_change_pageby' => true,
+			'log_multi_edit'    => true
 		);
 
-		if (!$step or !bouncer($step, $available_steps)){
-			$step = 'log_list';
+		if ($step && bouncer($step, $available_steps)) {
+			$step();
+		} else {
+			log_list();
 		}
-		$step();
 	}
 
 
@@ -42,7 +40,7 @@ $LastChangedRevision: 3569 $
 	{
 		global $event, $log_list_pageby, $expire_logs_after;
 
-		pagetop(gTxt('visitor_logs'), $message);
+		pagetop(gTxt('tab_logs'), $message);
 
 		extract(gpsa(array('page', 'sort', 'dir', 'crit', 'search_method')));
 		if ($sort === '') $sort = get_pref('log_sort_column', 'time');
@@ -94,16 +92,24 @@ $LastChangedRevision: 3569 $
 
 		if ($search_method and $crit != '')
 		{
-			$crit_escaped = doSlash(str_replace(array('\\','%','_','\''), array('\\\\','\\%','\\_', '\\\''), $crit));
-
-			$critsql = array(
-				'ip'     => "ip like '%$crit_escaped%'",
-				'host'   => "host like '%$crit_escaped%'",
-				'page'   => "page like '%$crit_escaped%'",
-				'refer'  => "refer like '%$crit_escaped%'",
-				'method' => "method like '%$crit_escaped%'",
-				'status' => "status like '%$crit_escaped%'"
-			);
+			$verbatim = preg_match('/^"(.*)"$/', $crit, $m);
+			$crit_escaped = doSlash($verbatim ? $m[1] : str_replace(array('\\','%','_','\''), array('\\\\','\\%','\\_', '\\\''), $crit));
+			$critsql = $verbatim ?
+				array(
+					'ip'     => "ip = '$crit_escaped'",
+					'host'   => "host = '$crit_escaped'",
+					'page'   => "page = '$crit_escaped'",
+					'refer'  => "refer = '$crit_escaped'",
+					'method' => "method = '$crit_escaped'",
+					'status' => "status = '$crit_escaped'"
+				) : array(
+					'ip'     => "ip like '%$crit_escaped%'",
+					'host'   => "host like '%$crit_escaped%'",
+					'page'   => "page like '%$crit_escaped%'",
+					'refer'  => "refer like '%$crit_escaped%'",
+					'method' => "method like '%$crit_escaped%'",
+					'status' => "status like '%$crit_escaped%'"
+				);
 
 			if (array_key_exists($search_method, $critsql))
 			{
@@ -124,8 +130,11 @@ $LastChangedRevision: 3569 $
 			$crit = '';
 		}
 
+		$criteria .= callback_event('admin_criteria', 'log_list', 0, $criteria);
+
 		$total = safe_count('txp_log', "$criteria");
 
+		echo '<h1 class="txp-heading">'.gTxt('tab_logs').'</h1>';
 		echo '<div id="'.$event.'_control" class="txp-control-panel">';
 
 		if ($total < 1)
@@ -155,39 +164,25 @@ $LastChangedRevision: 3569 $
 
 		if ($rs)
 		{
-			echo n.'<div id="'.$event.'_container" class="txp-container txp-list">';
-			echo n.n.'<form action="index.php" id="log_form" method="post" name="longform" onsubmit="return verify(\''.gTxt('are_you_sure').'\')">'.
+			echo n.'<div id="'.$event.'_container" class="txp-container">';
+			echo n.n.'<form action="index.php" id="log_form" class="multi_edit_form" method="post" name="longform">'.
 
-				startTable('list','','list','','90%').
+				n.'<div class="txp-listtables">'.
+				n.startTable('', '', 'txp-list').
 				n.'<thead>'.
 				n.tr(
+					n.hCell(fInput('checkbox', 'select_all', 0, '', '', '', '', '', 'select_all'), '', ' title="'.gTxt('toggle_all_selected').'" class="multi-edit"').
 					n.column_head('time', 'time', 'log', true, $switch_dir, $crit, $search_method, (('time' == $sort) ? "$dir " : '').'date time').
-					column_head('IP', 'ip', 'log', true, $switch_dir, $crit, $search_method, (('ip' == $sort) ? "$dir " : '').'log_detail ip').
-					column_head('host', 'host', 'log', true, $switch_dir, $crit, $search_method, (('host' == $sort) ? "$dir " : '').'host').
-					column_head('page', 'page', 'log', true, $switch_dir, $crit, $search_method, (('page' == $sort) ? "$dir " : '').'page').
-					column_head('referrer', 'refer', 'log', true, $switch_dir, $crit, $search_method, (('refer' == $sort) ? "$dir " : '').'refer').
-					column_head('method', 'method', 'log', true, $switch_dir, $crit, $search_method, (('method' == $sort) ? "$dir " : '').'log_detail method').
-					column_head('status', 'status', 'log', true, $switch_dir, $crit, $search_method, (('status' == $sort) ? "$dir " : '').'log_detail status').
-					hCell('', '', ' class="multi-edit"')
+					n.column_head('IP', 'ip', 'log', true, $switch_dir, $crit, $search_method, (('ip' == $sort) ? "$dir " : '').'log_detail ip').
+					n.column_head('host', 'host', 'log', true, $switch_dir, $crit, $search_method, (('host' == $sort) ? "$dir " : '').'host').
+					n.column_head('page', 'page', 'log', true, $switch_dir, $crit, $search_method, (('page' == $sort) ? "$dir " : '').'page').
+					n.column_head('referrer', 'refer', 'log', true, $switch_dir, $crit, $search_method, (('refer' == $sort) ? "$dir " : '').'refer').
+					n.column_head('method', 'method', 'log', true, $switch_dir, $crit, $search_method, (('method' == $sort) ? "$dir " : '').'log_detail method').
+					n.column_head('status', 'status', 'log', true, $switch_dir, $crit, $search_method, (('status' == $sort) ? "$dir " : '').'log_detail status')
 			).
 			n.'</thead>';
 
-			$tfoot = n.'<tfoot>'.tr(
-				tda(
-					toggle_box('log_detail'),
-					' class="detail-toggle" colspan="2" style="text-align: left; border: none;"'
-				).
-				tda(
-					select_buttons().
-					log_multiedit_form($page, $sort, $dir, $crit, $search_method)
-				, ' class="multi-edit" colspan="6" style="text-align: right; border: none;"')
-			).n.'</tfoot>';
-
-
-			echo $tfoot;
 			echo '<tbody>';
-
-			$ctr = 1;
 
 			while ($a = nextRow($rs))
 			{
@@ -197,7 +192,7 @@ $LastChangedRevision: 3569 $
 				{
 					$log_refer = 'http://'.$log_refer;
 
-					$log_refer = '<a href="'.htmlspecialchars($log_refer).'" target="_blank">'.htmlspecialchars(soft_wrap($log_refer, 30)).'</a>';
+					$log_refer = '<a href="'.txpspecialchars($log_refer).'" target="_blank">'.txpspecialchars(soft_wrap($log_refer, 30)).'</a>';
 				}
 
 				if ($log_page)
@@ -205,7 +200,7 @@ $LastChangedRevision: 3569 $
 					$log_anchor = preg_replace('/\/$/','',$log_page);
 					$log_anchor = soft_wrap(substr($log_anchor,1), 30);
 
-					$log_page = '<a href="'.htmlspecialchars($log_page).'" target="_blank">'.htmlspecialchars($log_anchor).'</a>';
+					$log_page = '<a href="'.txpspecialchars($log_page).'" target="_blank">'.txpspecialchars($log_anchor).'</a>';
 
 					if ($log_method == 'POST')
 					{
@@ -214,39 +209,40 @@ $LastChangedRevision: 3569 $
 				}
 
 				echo tr(
-
 					n.td(
+						fInput('checkbox', 'selected[]', $log_id)
+					, '', 'multi-edit').
+
+					td(
 						gTime($log_uTime)
-					, 85, 'date time').
+					, '', 'date time').
 
-					td($log_ip, 20, 'log_detail ip').
+					td(txpspecialchars($log_ip), '', 'log_detail ip').
 
-					td(soft_wrap($log_host, 30), '', 'host').
+					td(txpspecialchars(soft_wrap($log_host, 30)), '', 'host').
 
 					td($log_page, '', 'page').
 					td($log_refer, '', 'refer').
-					td(htmlspecialchars($log_method), 60, 'log_detail method').
-					td($log_status, 60, 'log_detail status').
-
-					td(
-						fInput('checkbox', 'selected[]', $log_id)
-					, '', 'multi-edit')
-				, ' class="'.(($ctr%2 == 0) ? 'even' : 'odd').'"'
+					td(txpspecialchars($log_method), '', 'log_detail method').
+					td($log_status, '', 'log_detail status')
 				);
-
-				$ctr++;
 			}
 
-			echo '</tbody>'.
-			n.endTable().
-			n.tInput().
-			n.'</form>'.
-
-			n.'<div id="'.$event.'_navigation" class="txp-navigation">'.
-			n.nav_form('log', $page, $numPages, $sort, $dir, $crit, $search_method, $total, $limit).
-
-			n.pageby_form('log', $log_list_pageby).
-			n.'</div>'.n.'</div>';
+			echo '</tbody>',
+				n, endTable(),
+				n, '</div>',
+				n, log_multiedit_form($page, $sort, $dir, $crit, $search_method),
+				n, tInput(),
+				n, '</form>',
+				n, graf(
+					toggle_box('log_detail'),
+					' class="detail-toggle"'
+				),
+				n, '<div id="'.$event.'_navigation" class="txp-navigation">',
+				n, nav_form('log', $page, $numPages, $sort, $dir, $crit, $search_method, $total, $limit),
+				n, pageby_form('log', $log_list_pageby),
+				n, '</div>',
+				n, '</div>';
 		}
 	}
 
@@ -254,7 +250,7 @@ $LastChangedRevision: 3569 $
 
 	function log_search_form($crit, $method)
 	{
-		$methods =	array(
+		$methods = array(
 			'ip'     => gTxt('IP'),
 			'host'   => gTxt('host'),
 			'page'   => gTxt('page'),
@@ -282,7 +278,7 @@ $LastChangedRevision: 3569 $
 			'delete' => gTxt('delete')
 		);
 
-		return event_multiedit_form('log', $methods, $page, $sort, $dir, $crit, $search_method);
+		return multi_edit($methods, 'log', 'log_multi_edit', $page, $sort, $dir, $crit, $search_method);
 	}
 
 // -------------------------------------------------------------

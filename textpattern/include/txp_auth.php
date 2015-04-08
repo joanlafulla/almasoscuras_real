@@ -9,8 +9,8 @@ All rights reserved
 
 Use of this software indicates acceptance of the Textpattern license agreement
 
-$HeadURL: https://textpattern.googlecode.com/svn/releases/4.4.1/source/textpattern/include/txp_auth.php $
-$LastChangedRevision: 3571 $
+$HeadURL: https://textpattern.googlecode.com/svn/releases/4.5.7/source/textpattern/include/txp_auth.php $
+$LastChangedRevision: 3964 $
 
 */
 
@@ -94,65 +94,73 @@ function doAuth()
 
 	function doLoginForm($message)
 	{
-		global $txpcfg;
-
 		include txpath.'/lib/txplib_head.php';
 
-		pagetop(gTxt('login'));
+		pagetop(gTxt('login'), $message);
 
 		$stay  = (cs('txp_login') and !gps('logout') ? 1 : 0);
 		$reset = gps('reset');
 
-		list($name) = explode(',', cs('txp_login'));
+		$name = join(',', array_slice(explode(',', cs('txp_login')), 0, -1));
 
-		echo n.'<div id="login_container" class="txp-container txp-edit">';
+		echo n.'<div id="login_container" class="txp-container">';
 		echo form(
-			startTable('edit', '', 'login-pane').
-				n.n.tr(
-					n.td().
-					td(graf($message))
-				).
+			'<div class="txp-login">'.
+			n.hed(gTxt($reset ? 'password_reset' : 'login_to_textpattern'), 2).
 
-				n.n.tr(
-					n.fLabelCell('name', '', 'name').
-					n.fInputCell('p_userid', $name, 1, '', '', 'name')
-				).
+			n.graf(
+				'<span class="login-label"><label for="login_name">'.gTxt('name').'</label></span>'.
+				n.'<span class="login-value">'.fInput('text', 'p_userid', $name, '', '', '', INPUT_REGULAR, '', 'login_name').'</span>'
+			, ' class="login-name"').
 
-				($reset ? '' :
-					n.n.tr(
-						n.fLabelCell('password', '', 'password').
-						n.td(
-						  	fInput('password', 'p_password', '', 'edit', '', '', '', 2, 'password')
-						)
-					)
-				).
+			($reset
+				? ''
+				: n.graf(
+					'<span class="login-label"><label for="login_password">'.gTxt('password').'</label></span>'.
+					n.'<span class="login-value">'.fInput('password', 'p_password', '', '', '', '', INPUT_REGULAR, '', 'login_password').'</span>'
+				, ' class="login-password"')
+			).
 
-				($reset ? '' :
-					n.n.tr(
-						n.td().
-						td(
-							graf(checkbox('stay', 1, $stay, 3, 'stay').'<label for="stay">'.gTxt('stay_logged_in').'</label>'.
-							sp.popHelp('remember_login'))
-						)
-					)
-				).
+			($reset
+				? ''
+				: graf(
+					checkbox('stay', 1, $stay, '', 'login_stay').n.'<label for="login_stay">'.gTxt('stay_logged_in').'</label>'.sp.popHelp('remember_login')
+					, ' class="login-stay"')
+			).
 
-				n.n.tr(
-					n.td().
-					td(
-						($reset ? hInput('p_reset', 1) : '').
-						fInput('submit', '', gTxt($reset ? 'password_reset_button' : 'log_in_button'), 'publish', '', '', '', 4).
-						($reset ? '' : graf('<a href="?reset=1">'.gTxt('password_forgotten').'</a>'))
-					)
-				).
+			($reset ? n.hInput('p_reset', 1) : '').
 
-			endTable().
-
-			(gps('event') ? eInput(gps('event')) : '')
+			n.graf(
+				fInput('submit', '', gTxt($reset ? 'password_reset_button' : 'log_in_button'), 'publish')
+			).
+			n.(
+				($reset
+					? graf('<a href="index.php">'.gTxt('back_to_login').'</a>', ' class="login-return"')
+					: graf('<a href="?reset=1">'.gTxt('password_forgotten').'</a>', ' class="login-forgot"')
+				)
+			).
+			(gps('event') ? eInput(gps('event')) : '').
+			'</div>'
 		, '', '', 'post', '', '', 'login_form').'</div>'.
 
 
-		n.'</body>'.n.'</html>';
+		n.script_js(<<<EOSCR
+// Focus on either username or password when empty
+$(document).ready(
+	function() {
+		var has_name = $("#login_name").val().length;
+		var password_box = $("#login_password").val();
+		var has_password = (password_box) ? password_box.length : 0;
+		if (!has_name) {
+			$("#login_name").focus();
+		} else if (!has_password) {
+		 	$("#login_password").focus();
+		}
+	}
+);
+EOSCR
+		).
+		n.'</div><!-- /txp-body -->'.n.'</body>'.n.'</html>';
 
 		exit(0);
 	}
@@ -160,18 +168,20 @@ function doAuth()
 // -------------------------------------------------------------
 	function doTxpValidate()
 	{
-		global $logout,$txpcfg, $txp_user;
+		global $logout, $txp_user;
 		$p_userid   = ps('p_userid');
 		$p_password = ps('p_password');
 		$p_reset    = ps('p_reset');
 		$stay       = ps('stay');
 		$logout     = gps('logout');
-		$message    = gTxt('login_to_textpattern');
+		$message    = '';
 		$pub_path   = preg_replace('|//$|','/', rhu.'/');
 
 		if (cs('txp_login') and strpos(cs('txp_login'), ','))
 		{
-			list($c_userid, $c_hash) = explode(',', cs('txp_login'));
+			$txp_login = explode(',', cs('txp_login'));
+			$c_hash = end($txp_login);
+			$c_userid = join(',', array_slice($txp_login, 0, -1));
 		}
 		else
 		{
@@ -207,13 +217,13 @@ function doAuth()
 					// create $txp_user
 					$txp_user = $c_userid;
 				}
-				return '';
+				return $message;
 			}
 			else
 			{
 				setcookie('txp_login', $c_userid, time()+3600*24*365);
 				setcookie('txp_login_public', '', time()-3600, $pub_path);
-				$message = gTxt('bad_cookie');
+				$message = array(gTxt('bad_cookie'), E_ERROR);
 			}
 
 		}
@@ -235,7 +245,11 @@ function doAuth()
 				setcookie(
 					'txp_login',
 					$name.','.$c_hash,
-					($stay ? time()+3600*24*365 : 0)
+					($stay ? time()+3600*24*365 : 0),
+					null,
+					null,
+					null,
+					LOGIN_COOKIE_HTTP_ONLY
 				);
 
 				setcookie(
@@ -252,7 +266,7 @@ function doAuth()
 			else
 			{
 				sleep(3);
-				$message = gTxt('could_not_log_in');
+				$message = array(gTxt('could_not_log_in'), E_ERROR);
 			}
 		}
 		elseif ($p_reset) // reset request
@@ -261,11 +275,11 @@ function doAuth()
 
 			include_once txpath.'/lib/txplib_admin.php';
 
-			$message = send_reset_confirmation_request($p_userid);
+			$message = ($p_userid) ? send_reset_confirmation_request($p_userid) : '';
 		}
 		elseif (gps('reset'))
 		{
-			$message = gTxt('password_reset');
+			$message = '';
 		}
 		elseif (gps('confirm'))
 		{

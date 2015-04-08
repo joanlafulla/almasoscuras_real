@@ -1,11 +1,11 @@
 <?php
 /*
-$HeadURL: https://textpattern.googlecode.com/svn/releases/4.4.1/source/textpattern/include/import/import_wp.php $
-$LastChangedRevision: 3488 $
+$HeadURL: https://textpattern.googlecode.com/svn/releases/4.5.7/source/textpattern/include/import/import_wp.php $
+$LastChangedRevision: 3997 $
 */
 
 
-	function doImportWP($b2dblogin, $b2db, $b2dbpass, $b2dbhost, $wpdbprefix, $insert_into_section, $insert_with_status, $default_comment_invite)
+	function doImportWP($b2dblogin, $b2db, $b2dbpass, $b2dbhost, $wpdbprefix, $insert_into_section, $insert_with_status, $default_comment_invite, $wpdbcharset)
 	{
 		global $txpcfg;
 
@@ -18,9 +18,9 @@ $LastChangedRevision: 3488 $
 
 		mysql_select_db($b2db, $b2link);
 
-		if (!mysql_query('SET NAMES utf8', $b2link))
+		if (!mysql_query('SET NAMES '.doslash($wpdbcharset), $b2link))
 		{
-			return 'WordPress database does not support the UTF8 character set. Aborting.';
+			return 'WordPress database does not support the requested character set. Aborting.';
 		}
 
 
@@ -169,7 +169,7 @@ $LastChangedRevision: 3488 $
 				u.user_login as AuthorID
 			from ".$wpdbprefix."posts as p left join ".$wpdbprefix."users as u
 				on u.ID = p.post_author
-			where p.post_type <> 'revision'
+			where p.post_type = 'post'
 			order by p.ID asc
 		", $b2link) or $errors[] = mysql_error();
 
@@ -265,6 +265,25 @@ $LastChangedRevision: 3488 $
 			$article['Category2'] = !empty($article_categories[1]) ? $article_categories[1]['name'] : '';
 
 
+			// article images
+			$article_images = array();
+
+			$article_image_query = mysql_query("
+			select
+				guid
+			from ".$wpdbprefix."posts
+			where post_type = 'attachment' and post_mime_type like 'image/%' and post_parent=".$article['ID']
+			, $b2link) or $errors[] = mysql_error();
+
+			while ($image = mysql_fetch_array($article_image_query))
+			{
+				$article_images[] = $image['guid'];
+			}
+
+			// Comma-separated image urls preserve multiple attachments.
+			// Attn: If more than one image is attached, <txp:article_image /> will not work out of the box.
+			$article['Image'] = join(',', $article_images);
+
 			$articles[] = $article;
 		}
 
@@ -325,10 +344,10 @@ $LastChangedRevision: 3488 $
 		// keep a handy copy of txpdb values, and do not alter Dean code
 		// for now! ;-)
 
-		$txpdb			= $txpcfg['db'];
+		$txpdb      = $txpcfg['db'];
 		$txpdblogin = $txpcfg['user'];
-		$txpdbpass	= $txpcfg['pass'];
-		$txpdbhost	= $txpcfg['host'];
+		$txpdbpass  = $txpcfg['pass'];
+		$txpdbhost  = $txpcfg['host'];
 
 		// Yes, we have to make a new connection
 		// otherwise doArray complains
@@ -440,24 +459,25 @@ $LastChangedRevision: 3488 $
 				// can not use array slash due to way on which comments are selected
 				$rs = mysql_query("
 					insert into ".safe_pfx('textpattern')." set
-						Posted		     = '".doSlash($Posted)."',
-						LastMod		     = '".doSlash($LastMod)."',
-						Title			     = '".doSlash($textile->TextileThis($Title, 1))."',
+						Posted         = '".doSlash($Posted)."',
+						LastMod        = '".doSlash($LastMod)."',
+						Title          = '".doSlash($textile->TextileThis($Title, 1))."',
 						url_title      = '".doSlash($url_title)."',
-						Body			     = '".doSlash($Body)."',
+						Body           = '".doSlash($Body)."',
 						Body_html      = '".doSlash($Body_html)."',
-						AuthorID	     = '".doSlash($AuthorID)."',
+						Image          = '".doSlash($Image)."',
+						AuthorID       = '".doSlash($AuthorID)."',
 						Category1      = '".doSlash($Category1)."',
 						Category2      = '".doSlash($Category2)."',
-						Section		     = '$insert_into_section',
+						Section        = '$insert_into_section',
 						uid            = '".md5(uniqid(rand(), true))."',
 						feed_time      = '".substr($Posted, 0, 10)."',
 						Annotate       = '".doSlash($Annotate)."',
 						AnnotateInvite = '$default_comment_invite',
-						Status		     = '".doSlash($Status)."'
+						Status         = '".doSlash($Status)."'
 				", $txplink) or $errors[] = mysql_error();
 
-				if ((int)$insert_id = mysql_insert_id())
+				if ((int)$insert_id = mysql_insert_id($txplink))
 				{
 					$results[] = '<li>'.$Title.'</li>';
 

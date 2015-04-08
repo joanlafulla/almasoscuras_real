@@ -1,14 +1,13 @@
 <?php
 /*
-$HeadURL: https://textpattern.googlecode.com/svn/releases/4.4.1/source/textpattern/include/import/import_mtdb.php $
-$LastChangedRevision: 3488 $
+$HeadURL: https://textpattern.googlecode.com/svn/releases/4.5.7/source/textpattern/include/import/import_mtdb.php $
+$LastChangedRevision: 3997 $
 */
 
 
 // ----------------------------------------------------------------
 	function doImportMTDB($mt_dblogin, $mt_db, $mt_dbpass, $mt_dbhost, $blog_id, $insert_into_section, $insert_with_status, $default_comment_invite)
 	{
-		global $txpcfg;
 		//Keep some response on some part
 		$results = array();
 
@@ -69,9 +68,9 @@ $LastChangedRevision: 3488 $
 			unset($categories);
 
 			//Trap comments for each article
-		    $comments = array();
+			$comments = array();
 
-		    $q = "
+			$q = "
 				select
 				mt_comment.comment_id as discussid,
 				mt_comment.comment_ip as ip,
@@ -83,9 +82,9 @@ $LastChangedRevision: 3488 $
 				from mt_comment where comment_blog_id = '$blog_id' AND comment_entry_id='{$b['ID']}'
 			";
 
-		    $c = mysql_query($q, $mtlink);
+			$c = mysql_query($q, $mtlink);
 
-		    while($d=mysql_fetch_assoc($c)){
+			while($d=mysql_fetch_assoc($c)){
 				$comments[] = $d;
 			}
 			//Attach comments to article
@@ -170,14 +169,14 @@ $LastChangedRevision: 3488 $
 				$AuthorID = (!empty($authors_map[$AuthorID])) ? doSlash($authors_map[$AuthorID]) : '';
 
 				$insertID = safe_insert("textpattern","
-					ID        	   = '$ID',
+					ID             = '$ID',
 					Posted         = '$Posted',
 					LastMod        = '$LastMod',
 					Title          = '".doSlash($Title)."',
 					Body           = '".doSlash($Body)."',
-					Excerpt		   = '".doSlash($Excerpt)."',
+					Excerpt        = '".doSlash($Excerpt)."',
 					Excerpt_html   = '".doSlash($Excerpt_html)."',
-					Keywords	   = '".doSlash($Keywords)."',
+					Keywords       = '".doSlash($Keywords)."',
 					Body_html      = '".doSlash($Body_html)."',
 					AuthorID       = '$AuthorID',
 					Category1      = '$Category1',

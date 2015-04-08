@@ -9,8 +9,8 @@
 
 	Use of this software indicates acceptance of the Textpattern license agreement
 
-$HeadURL: https://textpattern.googlecode.com/svn/releases/4.4.1/source/textpattern/include/txp_form.php $
-$LastChangedRevision: 3560 $
+$HeadURL: https://textpattern.googlecode.com/svn/releases/4.5.7/source/textpattern/include/txp_form.php $
+$LastChangedRevision: 4156 $
 
 */
 
@@ -18,18 +18,27 @@ $LastChangedRevision: 3560 $
 
 	global $vars;
 	$vars = array('Form','type','name','savenew','oldname');
-	$essential_forms = array('comments','comments_display','comment_form','default','Links','files');
+	$essential_forms = array('comments','comments_display','comment_form','default','plainlinks','files');
+	$form_types = array(
+		'article'  => gTxt('article'),
+		'misc'     => gTxt('misc'),
+		'comment'  => gTxt('comment'),
+		'category' => gTxt('category'),
+		'file'     => gTxt('file'),
+		'link'     => gTxt('link'),
+		'section'  => gTxt('section'),
+	);
 
 	if ($event == 'form') {
 		require_privs('form');
 
 		bouncer($step,
 			array(
-				'form_edit' 	=> false,
-				'form_create' 	=> false,
-				'form_delete' 	=> true,
+				'form_edit'       => false,
+				'form_create'     => false,
+				'form_delete'     => true,
 				'form_multi_edit' => true,
-				'form_save' 	=> true,
+				'form_save'       => true,
 				'save_pane_state' => true
 			)
 		);
@@ -49,12 +58,21 @@ $LastChangedRevision: 3560 $
 // -------------------------------------------------------------
 	function form_list($curname)
 	{
-		global $step,$essential_forms;
-		$out[] = '<p class="action-create smallerbox">'.sLink('form','form_create',gTxt('create_new_form')).'</p>';
+		global $step,$essential_forms,$form_types;
 
-		$methods = array('delete'=>gTxt('delete'));
+		$types = formTypes('', false);
 
-		$rs = safe_rows_start("*", "txp_form", "1 order by type asc, name asc");
+		$methods = array(
+			'changetype' => array('label' => gTxt('changetype'), 'html' => $types),
+			'delete'     => gTxt('delete'),
+		);
+
+		$out[] = '<p class="action-create">'.sLink('form','form_create',gTxt('create_new_form')).'</p>';
+
+		$criteria = 1;
+		$criteria .= callback_event('admin_criteria', 'form_list', 0, $criteria);
+
+		$rs = safe_rows_start("*", "txp_form", "$criteria order by field(type,'" . join("','", array_keys($form_types)) . "') asc, name asc");
 
 		if ($rs) {
 			$ctr = 1;
@@ -63,15 +81,14 @@ $LastChangedRevision: 3560 $
 				extract($a);
 				$editlink = ($curname!=$name)
 					?	eLink('form','form_edit','name',$name,$name)
-					:	htmlspecialchars($name);
+					:	txpspecialchars($name);
 				$modbox = (!in_array($name, $essential_forms))
 					?	'<input type="checkbox" name="selected_forms[]" value="'.$name.'" />'
 					:	'';
 
 				if ($prev_type != $type) {
 					$visipref = 'pane_form_'.$type.'_visible';
-					//TODO: Add 'article', 'comment', 'misc' to rpc server for gTxt()
-					$group_start = '<div class="form-list-group '.$type.'"><h3 class="plain lever'.(get_pref($visipref) ? ' expanded' : '').'"><a href="#'.$type.'">'.ucfirst(gTxt($type)).'</a></h3>'.n.
+					$group_start = '<div class="form-list-group '.$type.'"><h3 class="lever'.(get_pref($visipref) ? ' expanded' : '').'"><a href="#'.$type.'">'.$form_types[$type].'</a></h3>'.n.
 						'<div id="'.$type.'" class="toggle form-list" style="display:'.(get_pref($visipref) ? 'block' : 'none').'">'.n.
 						'<ul class="plain-list">'.n;
 					$group_end = ($ctr > 1) ? '</ul></div></div>'.n : '';
@@ -80,18 +97,25 @@ $LastChangedRevision: 3560 $
 				}
 
 				$out[] = $group_end.$group_start;
-				$out[] = '<li class="'.(($ctr%2 == 0) ? 'even' : 'odd').'">'.n.'<span class="form-list-action">'.$modbox.'</span><span class="form-list-name">'.$editlink.'</span></li>';
+				$out[] = '<li>'.n.'<span class="form-list-action">'.$modbox.'</span><span class="form-list-name">'.$editlink.'</span></li>';
 				$prev_type = $type;
 				$ctr++;
 			}
 
 			$out[] = '</ul></div></div>';
-			$out[] = eInput('form').sInput('form_multi_edit');
-			$out[] = graf(selectInput('edit_method',$methods,'',1).sp.gTxt('selected').sp.
-				fInput('submit','form_multi_edit',gTxt('go'),'smallerbox')
-				, ' align="right"');
+			$out[] = multi_edit($methods, 'form', 'form_multi_edit');
 
-			return form( join('',$out),'',"verify('".gTxt('are_you_sure')."')", 'post', '', '', 'allforms_form' );
+			return form( join('',$out),'','', 'post', '', '', 'allforms_form' ).
+				script_js( <<<EOS
+				$(document).ready(function() {
+					$('#allforms_form').txpMultiEditForm({
+						'checkbox' : 'input[name="selected_forms[]"][type=checkbox]',
+						'row' : '.plain-list li, .form-list-name',
+						'highlighted' : '.plain-list li'
+					});
+				});
+EOS
+				);
 		}
 	}
 
@@ -103,6 +127,7 @@ $LastChangedRevision: 3560 $
 
 		$method = ps('edit_method');
 		$forms = ps('selected_forms');
+		$affected = array();
 
 		if ($forms and is_array($forms))
 		{
@@ -110,16 +135,36 @@ $LastChangedRevision: 3560 $
 			{
 				foreach ($forms as $name)
 				{
-					if (!in_array($name, $essential_forms) && form_delete($name))
+					if (form_delete($name))
 					{
-						$deleted[] = $name;
+						$affected[] = $name;
 					}
 				}
 
-				$message = gTxt('forms_deleted', array('{list}' => join(', ', $deleted)));
+				callback_event('forms_deleted', '', 0, $affected);
+
+				$message = gTxt('forms_deleted', array('{list}' => join(', ', $affected)));
 
 				form_edit($message);
 			}
+
+			if ($method == 'changetype')
+			{
+				$new_type = ps('type');
+
+				foreach ($forms as $name)
+				{
+					if (form_set_type($name, $new_type))
+					{
+						$affected[] = $name;
+					}
+				}
+
+				$message = gTxt('forms_updated', array('{list}' => join(', ', $affected)));
+
+				form_edit($message);
+			}
+
 		}
 
 		else
@@ -158,34 +203,35 @@ $LastChangedRevision: 3560 $
 		}
 
 		if (!in_array($name, $essential_forms))
-			$changename = graf(gTxt('form_name').br.fInput('text','name',$name,'edit','','',15));
+			$changename = graf(gTxt('form_name').br.fInput('text','name',$name,'edit','','',INPUT_REGULAR));
 		else
 			$changename = graf(gTxt('form_name').br.tag($name, 'em').hInput('name',$name));
 
 		// Generate the tagbuilder links
-		// Format of each entry is popTagLink -> array ( gTxt string, class/ID, popHelp ref )
+		// Format of each entry is popTagLink -> array ( gTxt string, class/ID )
 		$tagbuild_items = array(
-			'article' => array('articles', 'article-tags', 'form_articles'),
-			'link' => array('links', 'link-tags', 'form__place_link'),
-			'comment' => array('comments', 'comment-tags', 'form_comments'),
-			'comment_details' => array('comment_details', 'comment-detail-tags', 'form_comment_details'),
-			'comment_form' => array('comment_form', 'comment-form-tags', 'form_comment_form'),
-			'search_result' => array('search_results_form', 'search-result-tags', 'form_search_results'),
-			'file_download' => array('file_download_tags', 'file-tags', 'form_file_download_tags'),
-			'category' => array('category_tags', 'category-tags', 'form_category_tags'),
-			'section' => array('section_tags', 'section-tags', 'form_section_tags'),
+			'article'         => array('articles', 'article-tags'),
+			'link'            => array('links', 'link-tags'),
+			'comment'         => array('comments', 'comment-tags'),
+			'comment_details' => array('comment_details', 'comment-detail-tags'),
+			'comment_form'    => array('comment_form', 'comment-form-tags'),
+			'search_result'   => array('search_results_form', 'search-result-tags'),
+			'file_download'   => array('file_download_tags', 'file-tags'),
+			'category'        => array('category_tags', 'category-tags'),
+			'section'         => array('section_tags', 'section-tags'),
 		);
 
 		$tagbuild_links = '';
 		foreach ($tagbuild_items as $tb => $item) {
-			$tagbuild_links .= '<div class="'.$item[1].'">'.hed('<a href="#'.$item[1].'">'.gTxt($item[0]).'</a>'.
-					sp.popHelp($item[2]), 3, ' class="plain lever'.(get_pref('pane_form_'.$item[1].'_visible') ? ' expanded' : '').'"').
+			$tagbuild_links .= '<div class="'.$item[1].'">'.hed('<a href="#'.$item[1].'">'.gTxt($item[0]).'</a>'
+					, 3, ' class="lever'.(get_pref('pane_form_'.$item[1].'_visible') ? ' expanded' : '').'"').
 					'<div id="'.$item[1].'" class="toggle on" style="display:'.(get_pref('pane_form_'.$item[1].'_visible') ? 'block' : 'none').'">'.popTagLinks($tb).'</div></div>';
 		}
 
 		$out =
-			'<div id="'.$event.'_container" class="txp-container txp-edit">'.
-			startTable('edit').
+			'<h1 class="txp-heading">'.gTxt('tab_forms').sp.popHelp('forms_overview').'</h1>'.
+			'<div id="'.$event.'_container" class="txp-container">'.
+			startTable('', '', 'txp-columntable').
 			tr(
 				tdtl(
 					'<div id="tagbuild_links">'.hed(gTxt('tagbuilder'), 2).
@@ -196,14 +242,14 @@ $LastChangedRevision: 3560 $
 					'<form action="index.php" method="post" id="form_form">'.
 						'<div id="main_content">'.
 						'<div class="edit-title">'.gTxt('you_are_editing_form').sp.strong(($name) ? $name : gTxt('untitled')).'</div>'.
-						'<textarea id="form" class="code" name="Form" cols="60" rows="20">'.htmlspecialchars($Form).'</textarea>'.
+						'<textarea id="form" class="code" name="Form" cols="'.INPUT_LARGE.'" rows="'.INPUT_REGULAR.'">'.txpspecialchars($Form).'</textarea>'.
 
 					$changename.
 
 					graf(gTxt('form_type').br.
 						formtypes($type)).
 					(empty($type) ? graf(gTxt('only_articles_can_be_previewed')) : '').
-					(empty($type) || $type == 'article' ? fInput('submit','form_preview',gTxt('preview'),'smallbox') : '' ).
+					(empty($type) || $type == 'article' ? fInput('submit','form_preview',gTxt('preview')) : '' ).
 					graf($inputs).
 					'</div>'.
 					n.tInput().
@@ -211,7 +257,7 @@ $LastChangedRevision: 3560 $
 
 				, ' class="column"').
 				tdtl(
-					'<div id="content_switcher" class="list">'.hed(gTxt('all_forms'), 2).
+					'<div id="content_switcher">'.hed(gTxt('all_forms'), 2).
 					form_list($name).
 					'</div>'
 				, ' class="column"')
@@ -224,9 +270,9 @@ $LastChangedRevision: 3560 $
 
 	function form_save()
 	{
-		global $vars, $step, $essential_forms;
+		global $vars, $step, $essential_forms, $form_types;
 
-		extract(doSlash(gpsa($vars)));
+		extract(doSlash(array_map('assert_string', gpsa($vars))));
 		$name = doSlash(trim(preg_replace('/[<>&"\']/', '', gps('name'))));
 
 		if (!$name)
@@ -237,7 +283,7 @@ $LastChangedRevision: 3560 $
 			return form_edit(array($message, E_ERROR));
 		}
 
-		if (!in_array($type, array('article','category','comment','file','link','misc','section')))
+		if (!isset($form_types[$type]))
 		{
 			$step = 'form_create';
 			$message = gTxt('form_type_missing');
@@ -254,24 +300,31 @@ $LastChangedRevision: 3560 $
 				$step = 'form_create';
 				$message = gTxt('form_already_exists', array('{name}' => $name));
 
-			return form_edit(array($message, E_ERROR));
+				return form_edit(array($message, E_ERROR));
 			}
 
-			safe_insert('txp_form', "Form = '$Form', type = '$type', name = '$name'");
-
-			update_lastmod();
-
-			$message = gTxt('form_created', array('{name}' => $name));
+			if (safe_insert('txp_form', "Form = '$Form', type = '$type', name = '$name'"))
+			{
+				update_lastmod();
+				$message = gTxt('form_created', array('{name}' => $name));
+			}
+			else
+			{
+				$message = array(gTxt('form_save_failed'), E_ERROR);
+			};
 
 			return form_edit($message);
 		}
 
-		safe_update('txp_form', "Form = '$Form', type = '$type', name = '$name'", "name = '$oldname'");
-
-		update_lastmod();
-
-		$message = gTxt('form_updated', array('{name}' => $name));
-
+		if (safe_update('txp_form', "Form = '$Form', type = '$type', name = '$name'", "name = '$oldname'"))
+		{
+			update_lastmod();
+			$message = gTxt('form_updated', array('{name}' => $name));
+		}
+		else
+		{
+			$message = array(gTxt('form_save_failed'), E_ERROR);
+		}
 		form_edit($message);
 	}
 
@@ -281,18 +334,24 @@ $LastChangedRevision: 3560 $
 		global $essential_forms;
 		if (in_array($name, $essential_forms)) return false;
 		$name = doSlash($name);
-		if (safe_delete("txp_form","name='$name'")) {
-			return true;
-		}
-		return false;
+		return safe_delete("txp_form","name='$name'");
 	}
 
 // -------------------------------------------------------------
-	function formTypes($type)
+	function form_set_type($name, $type)
 	{
-	 	$types = array(''=>'','article'=>'article','category'=>'category','comment'=>'comment',
-	 		'file'=>'file','link'=>'link','misc'=>'misc','section'=>'section');
-		return selectInput('type',$types,$type);
+		global $essential_forms, $form_types;
+		if (in_array($name, $essential_forms) || !isset($form_types[$type])) return false;
+		$name = doSlash($name);
+		$type = doSlash($type);
+		return safe_update('txp_form', "type='$type'", "name='$name'");
+	}
+
+// -------------------------------------------------------------
+	function formTypes($type, $blank_first = true)
+	{
+	 	global $form_types;
+	 	return selectInput('type', $form_types, $type, $blank_first);
 	}
 
 // -------------------------------------------------------------
@@ -306,7 +365,7 @@ $LastChangedRevision: 3560 $
 			set_pref("pane_form_{$pane}_visible", (gps('visible') == 'true' ? '1' : '0'), $event, PREF_HIDDEN, 'yesnoradio', 0, PREF_PRIVATE);
 			send_xml_response();
 		} else {
-			send_xml_response(array('http-status' => '400 Bad Request'));
+			trigger_error('invalid_pane', E_USER_WARNING);
 		}
 	}
 
