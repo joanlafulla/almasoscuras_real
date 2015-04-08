@@ -1438,15 +1438,15 @@ label {
   -webkit-transition: all 1.5s;
   -moz-transition: all 0.5s;
   position: relative;
-  background-image: url(../img/slider/1_small.jpg); }
+  background-image: url(../img/hero/1_small.jpg); }
 
 @media only screen and (min-width: 479px) {
   .CoverImage {
-    background-image: url(../img/slider/1_medium.jpg); } }
+    background-image: url(../img/hero/1_medium.jpg); } }
 
 @media only screen and (min-width: 799px) {
   .CoverImage {
-    background-image: url(../img/slider/1.jpg); } }
+    background-image: url(../img/hero/1_big.jpg); } }
 
 .CoverImage--content {
   height: 100%;

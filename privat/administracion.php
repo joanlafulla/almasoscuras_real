@@ -24,7 +24,7 @@
 <li><a href="editar_carrusel.php">Editar Carrusel</a></li>
 <li><a href="editar_novedades.php">Editar Novedades</a></li>
 <li><a href="editar_recomendada.php">Editar Recomendada</a></li>
-<li><a href="hero.php">Gestionar Hero</a></li>
+<li><a href="hero_json.php">Gestionar Hero</a></li>
 </ol>
 <?php include("includes/enlaces.php"); ?>
 </body>
