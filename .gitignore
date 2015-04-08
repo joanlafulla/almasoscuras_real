@@ -1,4 +1,2 @@
-textpattern/setup/*
-textpattern/config.php
-textpattern/config-dist.php
+textpattern/**/*
 privat/Connections/*
