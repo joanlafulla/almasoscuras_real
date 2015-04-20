@@ -495,7 +495,12 @@ var getJsonHero = function() {
 			console.log("content: " + titulo);
 			$(".CoverImage--title").text(titulo);
 			$(".CoverImage--subtitle").text(subtitulo);
-			$(".tag--vod").text(categoria);
+			$("#tag_hero").text(categoria);
+			if(categoria==="reseña") {
+				$("#tag_hero").addClass("tag_header_criticas");
+			} else {
+				$("#tag_hero").addClass("tag_header_" + categoria);
+			}
 			$(".infoblock-text-calltoaction a").text(copybutton);
 			$(".infoblock-text-calltoaction a").attr("href", url);
 		});

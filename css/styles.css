@@ -1027,7 +1027,7 @@ ul.alert-error {
   .termometro table {
     margin-right: 32px; } }
 
-.tag--criticas, .tag--criticas--header, .tag--Libros, .tag--Libros--header, .tag--relatos, .tag--noticias, .tag--noticias--header, .tag--vod {
+.tag--criticas, .tag_header_criticas, .tag--Libros, .tag_header_libros, .tag_header_relatos, .tag--relatos, .tag--noticias, .tag_header_noticias, .tag--vod {
   border-radius: 4px;
   font-weight: 200;
   display: inline-block;
@@ -1051,7 +1051,7 @@ ul.alert-error {
     background-color: #f89406;
     color: #fff; }
 
-.tag--criticas--header {
+.tag_header_criticas {
   color: #fff;
   background-color: #660000; }
 
@@ -1063,9 +1063,13 @@ ul.alert-error {
     background-color: #E95C33;
     color: #fff; }
 
-.tag--Libros--header {
+.tag_header_libros {
   color: #fff;
   background-color: #E95C33; }
+
+.tag_header_relatos {
+  color: #fff;
+  background-color: #34495e; }
 
 .tag--relatos {
   border: 1px solid #34495e;
@@ -1083,7 +1087,7 @@ ul.alert-error {
     background-color: #27ae60;
     color: #fff; }
 
-.tag--noticias--header {
+.tag_header_noticias {
   color: #fff;
   background-color: #27ae60; }
 

@@ -1,7 +1,7 @@
 <?php 
 if (!empty($_FILES['herobig']['name'])){
 //defino una constante para la carpeta donde subo las imagenes grandes
-define('UPLOAD_DIR_HEROBIG','../images/hero');
+define('UPLOAD_DIR_HEROBIG','../img/hero');
 //$directorio = 'http://www.almasoscuras.com/images/elastic/large/';
 
 //lista de archivos permitidos
@@ -26,13 +26,13 @@ if ($sizeOK && $typeOK){
 switch($_FILES['herobig']['error']){
 case 0:
 echo "NOHAYERROR";
-echo "<p>".$subidos."</p>";
+//echo "<p>".$subidos."</p>";
 //que no haya error--- subo el archivo y lo renombro
 $exito=move_uploaded_file($_FILES['herobig']['tmp_name'],UPLOAD_DIR_HEROBIG.'/'.$_FILES['herobig']['name']);
 //$exito=move_uploaded_file($_FILES['herobig']['tmp_name'],$directorio.$_FILES['herobig']['name']);
 if ($exito){
 	//echo "EXITAZO";
-	$subidos="../images/hero/".$_FILES['herobig']['name'];
+	$subidos="../img/hero/".$_FILES['herobig']['name'];
 	echo "<p>".$subidos."</p>";
 //echo "<p>".$subidos."</p>";
 //echo "<p>Aquí está la imagen: <img src='".$subidos."' /></p>";
