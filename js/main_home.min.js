@@ -484,15 +484,37 @@ var getJsonHero = function() {
 		self.getJson();
 	};
 
+	this.resizeBackground = function(img_big, img_medium, img_small) {
+		console.log("hola resize");
+		if (window.matchMedia( '(min-width: 479px)' ).matches && window.matchMedia( '(max-width: 798px)' ).matches) {
+				$(".CoverImage").css({
+				"background-image" : "url('./img/hero/"+img_medium+"')"
+				});
+			} else if (window.matchMedia( '(min-width: 799px)' ).matches) { 
+				$(".CoverImage").css({
+				"background-image" : "url('./img/hero/"+img_big+"')"
+				});
+		} else {
+				$(".CoverImage").css({
+				"background-image" : "url('./img/hero/"+img_small+"')"
+				});
+		}
+	}
+
 	this.getJson = function() {
+		
 		var jasonData = $.getJSON("hero.json", function(data) {
 			var titulo = data.titulo,
 				subtitulo = data.subtitulo,
 				categoria = data.categoria,
 				copybutton = data.copybutton,
 				url = data.url;
+				img_big = data.img_big;
+				img_medium = data.img_medium;
+				img_small = data.img_small;
 
-			console.log("content: " + titulo);
+				self.resizeBackground(img_big, img_medium, img_small);
+
 			$(".CoverImage--title").text(titulo);
 			$(".CoverImage--subtitle").text(subtitulo);
 			$("#tag_hero").text(categoria);
@@ -510,6 +532,9 @@ var getJsonHero = function() {
 
 var jsonHero = new getJsonHero();
  	jsonHero.init();
+ 	$(window).on("resize", function (){
+ 		jsonHero.getJson();
+	});
 
 // *********************************************  //
 // VIDEOS DE YOUTUBE/VIMEO RESPONSIVE //

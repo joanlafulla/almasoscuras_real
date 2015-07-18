@@ -1434,21 +1434,11 @@ label {
   background-repeat: no-repeat;
   background-size: cover;
   margin: 0 auto 1em;
-  /*max-height: 600px;*/
   max-width: 100%;
   transition: all 1.5s;
   -webkit-transition: all 1.5s;
   -moz-transition: all 0.5s;
-  position: relative;
-  background-image: url(../img/hero/1_small.jpg); }
-
-@media only screen and (min-width: 479px) {
-  .CoverImage {
-    background-image: url(../img/hero/1_medium.jpg); } }
-
-@media only screen and (min-width: 799px) {
-  .CoverImage {
-    background-image: url(../img/hero/1_big.jpg); } }
+  position: relative; }
 
 .CoverImage--content {
   height: 100%;

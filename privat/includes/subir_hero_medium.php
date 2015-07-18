@@ -28,7 +28,11 @@ case 0:
 echo "NOHAYERROR";
 //echo "<p>".$subidos."</p>";
 //que no haya error--- subo el archivo y lo renombro
-$exito=move_uploaded_file($_FILES['heromedium']['tmp_name'],UPLOAD_DIR_HEROMEDIUM.'/'.$_FILES['heromedium']['name']);
+$unic_id = uniqid();
+$pre_name = explode(".", $_FILES['heromedium']['name']);
+$final_name_medium = $pre_name[0].$unic_id.".jpg";
+//echo "final name: ".$final_name."<br />";
+$exito=move_uploaded_file($_FILES['heromedium']['tmp_name'],UPLOAD_DIR_HEROBIG.'/'.$final_name_medium);
 //$exito=move_uploaded_file($_FILES['heromedium']['tmp_name'],$directorio.$_FILES['heromedium']['name']);
 if ($exito){
 	//echo "EXITAZO";

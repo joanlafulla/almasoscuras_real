@@ -28,7 +28,11 @@ case 0:
 echo "NOHAYERROR";
 //echo "<p>".$subidos."</p>";
 //que no haya error--- subo el archivo y lo renombro
-$exito=move_uploaded_file($_FILES['herobig']['tmp_name'],UPLOAD_DIR_HEROBIG.'/'.$_FILES['herobig']['name']);
+$unic_id_big = uniqid();
+$pre_name_big = explode(".", $_FILES['herobig']['name']);
+$final_name_big = $pre_name_big[0].$unic_id_big.".jpg";
+echo "final name jar: ".$final_name_big."<br />";
+$exito=move_uploaded_file($_FILES['herobig']['tmp_name'],UPLOAD_DIR_HEROBIG.'/'.$final_name_big);
 //$exito=move_uploaded_file($_FILES['herobig']['tmp_name'],$directorio.$_FILES['herobig']['name']);
 if ($exito){
 	//echo "EXITAZO";

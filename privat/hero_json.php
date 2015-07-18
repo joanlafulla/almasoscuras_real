@@ -7,30 +7,6 @@
 //DEFINIMOS LAS VARIABLES DE LA PELICULA
 if (array_key_exists('altahero',$_POST)){
 $altaOK=$_POST['altaOK'];
-$titulo=addslashes($_POST['titulo']);
-//echo $titulo."<br />";
-$subtitulo=addslashes($_POST['subtitulo']);
-//echo $subtitulo."<br />";
-$categoria=addslashes($_POST['categoria']);
-//echo $categoria."<br />";
-$copybutton=addslashes($_POST['copybutton']);
-//echo $copybutton."<br />";
-$url=addslashes($_POST['url']);
-//echo $url."<br />";
-$file="../hero.json";
-$data = json_decode(file_get_contents($file), true);
-$newdata = array('titulo'=>$titulo, 'subtitulo' => $subtitulo, 'categoria'=>$categoria,'copybutton'=>$copybutton, 'url'=>$url);
-$datafile= $newdata;
-//print_r($data);
-file_put_contents($file, json_encode($datafile));
-$data = json_decode(file_get_contents($file));
-  //echo "ahí va2...";
-  //print_r($data);
-
-
-//$herobig=addslashes($_POST['herobig']);
-//$heromedium=addslashes($_POST['heromedium']);
-//$herosmall=addslashes($_POST['herosmall']);
 
 //EMPEZAMOS A DAR DE ALTA LAS IMÁGENES
 define('MAX_FILE_SIZE',800000000);
@@ -44,6 +20,38 @@ include("includes/subir_hero_medium.php");
 include("includes/subir_hero_small.php");
 //echo $subidoimgposter."<br />".$resultadoimagen."<br />poster";
 //echo $subidoimgnovedades."<br />".$resultadoimagen."<br />parrilla";
+
+$titulo=addslashes($_POST['titulo']);
+//echo $titulo."<br />";
+$subtitulo=addslashes($_POST['subtitulo']);
+//echo $subtitulo."<br />";
+$categoria=addslashes($_POST['categoria']);
+//echo $categoria."<br />";
+$copybutton=addslashes($_POST['copybutton']);
+//echo $copybutton."<br />";
+$url=addslashes($_POST['url']);
+//echo $url."<br />";
+$img_big=$final_name_big;
+$img_medium=$final_name_medium;
+$img_small=$final_name_small;
+echo "img big: ".$img_big."<br />";
+//echo "img medium: ".$_FILES['heromedium']['name']."<br />";
+//echo "img small: ".$_FILES['herosmall']['name']."<br />";
+$file="../hero.json";
+$data = json_decode(file_get_contents($file), true);
+$newdata = array('titulo'=>$titulo, 'subtitulo' => $subtitulo, 'categoria'=>$categoria,'copybutton'=>$copybutton, 'url'=>$url, 'img_big' =>$img_big, 'img_medium' =>$img_medium, 'img_small' =>$img_small);
+$datafile= $newdata;
+//print_r($data);
+file_put_contents($file, json_encode($datafile));
+$data = json_decode(file_get_contents($file));
+  //echo "ahí va2...";
+  //print_r($data);
+
+
+//$herobig=addslashes($_POST['herobig']);
+//$heromedium=addslashes($_POST['heromedium']);
+//$herosmall=addslashes($_POST['herosmall']);
+
 } else {
   $file="../hero.json";
   $data = json_decode(file_get_contents($file));
