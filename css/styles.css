@@ -638,6 +638,9 @@ img.lazy {
 
 .alert-info {
   background-color: #2f96b4; }
+  .alert-info a {
+    color: #fff;
+    text-decoration: underline; }
 
 .alert-warning {
   background-color: #f89406; }
@@ -1310,7 +1313,7 @@ label {
   line-height: 2;
   font-family: 'open_sanslight', Arial, Helvetica, sans-serif; }
 
-.label-inline, label[for="remember"] {
+.label-inline, label[for="remember"], label[for="forget"] {
   display: inline;
   float: none;
   width: auto; }
