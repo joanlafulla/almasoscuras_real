@@ -514,8 +514,9 @@ img.lazy {
     margin: 8px 0 0;
     padding: 0;
     font-size: 16px;
-    text-transform: uppercase;
-    color: #fff; }
+    text-transform: uppercase; }
+    .menuDesplegable h2 a {
+      color: #fff; }
   .menuDesplegable h2 + p {
     margin-top: 2px;
     padding-top: 0; }
@@ -551,7 +552,27 @@ img.lazy {
 .menuDesplegable--content-header {
   height: 60px;
   overflow: hidden;
-  margin-top: 32px; }
+  margin-top: 32px;
+  text-indent: -9999px; }
+
+.menuDesplegable--content-header--quienes-somos, .menuDesplegable--content-header--reviews, .menuDesplegable--content-header--posters, .menuDesplegable--content-header--books, .menuDesplegable--content-header--tales {
+  background-image: url('../img/categorias_main_menu.jpg');
+  background-repeat: none; }
+
+.menuDesplegable--content-header--quienes-somos {
+  background-position: 0px 0px; }
+
+.menuDesplegable--content-header--reviews {
+  background-position: 0px -60px; }
+
+.menuDesplegable--content-header--posters {
+  background-position: 0px -120px; }
+
+.menuDesplegable--content-header--books {
+  background-position: 0px -180px; }
+
+.menuDesplegable--content-header--tales {
+  background-position: 0px -240px; }
 
 @media screen and (max-width: 420px) {
   .menuDesplegable--content {
