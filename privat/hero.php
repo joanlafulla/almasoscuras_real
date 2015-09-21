@@ -103,7 +103,7 @@ exit();
 <p>
   Estos són los tamaños de las distintas versiones del hero:
   <ul>
-    <li>hero_big: 1400 x 758 px</li>
+    <li>hero_big: 1200 x 650 px</li>
     <li>hero_medium: 800 x 433 px</li>
     <li>hero_small: 480 x 260 px</li>
   </ul>

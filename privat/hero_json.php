@@ -21,7 +21,7 @@ include("includes/subir_hero_small.php");
 //echo $subidoimgposter."<br />".$resultadoimagen."<br />poster";
 //echo $subidoimgnovedades."<br />".$resultadoimagen."<br />parrilla";
 
-$titulo=addslashes($_POST['titulo']);
+$titulo=$_POST['titulo'];
 //echo $titulo."<br />";
 $subtitulo=addslashes($_POST['subtitulo']);
 //echo $subtitulo."<br />";
@@ -94,7 +94,7 @@ $data = json_decode(file_get_contents($file));
 <p>
   Estos són los tamaños de las distintas versiones del hero:
   <ul>
-    <li>hero_big: 1400 x 758 px</li>
+    <li>hero_big: 1200 x 650 px</li>
     <li>hero_medium: 800 x 433 px</li>
     <li>hero_small: 480 x 260 px</li>
   </ul>
